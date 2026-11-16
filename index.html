@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Calculateur d'autonomie — Voiture électrique</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header>
+    <h1>⚡ Calculateur d'autonomie — voiture électrique</h1>
+    <p>Temps de charge, autonomie jusqu'à 10 %, coûts et CO₂, en prenant en compte la batterie, le chargeur embarqué, la puissance de la borne, les niveaux de charge, les pertes et votre type de conduite.</p>
+  </header>
+
+  <main>
+    <section class="panel">
+      <h2>🚗 1. Véhicule</h2>
+      <div class="grid">
+        <div class="champ">
+          <label for="vehicule">Modèle (préréglage, champs modifiables ensuite)</label>
+          <select id="vehicule"></select>
+        </div>
+        <div class="champ"><label for="capaUtile">Capacité batterie utile (kWh)</label><input type="number" id="capaUtile" step="0.1" min="1" value="60" /></div>
+        <div class="champ"><label for="capaBrute">Capacité batterie brute (kWh)</label><input type="number" id="capaBrute" step="0.1" min="0" value="65" /></div>
+        <div class="champ"><label for="obc">Chargeur embarqué AC max (kW)</label><input type="number" id="obc" step="0.1" min="0" value="11" /></div>
+        <div class="champ"><label for="dcMax">Charge rapide DC max du véhicule (kW)</label><input type="number" id="dcMax" step="1" min="0" value="130" /></div>
+      </div>
+      <h3>Consommations annoncées (kWh / 100 km)</h3>
+      <div class="grid">
+        <div class="champ"><label for="consoUrbain">Urbain</label><input type="number" id="consoUrbain" step="0.1" min="0" value="14" /></div>
+        <div class="champ"><label for="consoCampagne">Campagne / route</label><input type="number" id="consoCampagne" step="0.1" min="0" value="16" /></div>
+        <div class="champ"><label for="consoAutoroute">Autoroute (130 km/h)</label><input type="number" id="consoAutoroute" step="0.1" min="0" value="20" /></div>
+        <div class="champ"><label for="consoMixte">Mixte (WLTP)</label><input type="number" id="consoMixte" step="0.1" min="0" value="16" /></div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>🔌 2. Charge</h2>
+      <div class="grid">
+        <div class="champ">
+          <label for="typeBorne">Type de borne</label>
+          <select id="typeBorne">
+            <option value="AC">AC (domicile / voirie) — passe par le chargeur embarqué</option>
+            <option value="DC" selected>DC (borne rapide) — contourne le chargeur embarqué</option>
+          </select>
+        </div>
+        <div class="champ"><label id="labelBorne" for="puisBorne">Puissance de la borne DC (kW)</label><input type="number" id="puisBorne" step="1" min="1" value="150" /></div>
+        <div class="champ">
+          <label for="socInitial">Niveau de charge initial — <b id="socInitialVal">20 %</b></label>
+          <input type="range" id="socInitial" min="0" max="95" value="20" />
+        </div>
+        <div class="champ">
+          <label for="socCible">Niveau d'arrêt de la charge — <b id="socCibleVal">80 %</b></label>
+          <input type="range" id="socCible" min="5" max="100" value="80" />
+        </div>
+        <div class="champ"><label for="pertes">Pertes de charge (%)</label><input type="number" id="pertes" step="1" min="0" max="40" value="10" /></div>
+        <div class="champ"><label for="temperature">Température extérieure (°C)</label><input type="number" id="temperature" step="1" value="15" /></div>
+        <div class="champ case"><label><input type="checkbox" id="precond" /> Préconditionnement de la batterie avant la charge</label></div>
+      </div>
+      <p class="indice" id="indiceBorne"></p>
+    </section>
+
+    <section class="panel">
+      <h2>🛣 3. Conduite</h2>
+      <div class="grid">
+        <div class="champ">
+          <label for="scenario">Scénario de conduite</label>
+          <select id="scenario">
+            <option value="urbain">Urbain</option>
+            <option value="campagne">Campagne / route</option>
+            <option value="autoroute">Autoroute</option>
+            <option value="mixte" selected>Mixte (WLTP)</option>
+            <option value="perso">Mix personnalisé</option>
+          </select>
+        </div>
+        <div class="champ"><label for="vitesse">Vitesse moyenne (km/h) — agit sur la part autoroute et le temps de trajet</label><input type="number" id="vitesse" min="30" max="150" value="110" /></div>
+      </div>
+      <div id="blocMix" class="mix" style="display:none">
+        <div class="champ"><label>Part urbaine — <b id="mixUVal"></b></label><input type="range" id="mixU" min="0" max="100" value="30" /></div>
+        <div class="champ"><label>Part campagne — <b id="mixRVal"></b></label><input type="range" id="mixR" min="0" max="100" value="40" /></div>
+        <div class="champ"><label>Part autoroute — <b id="mixAVal"></b></label><input type="range" id="mixA" min="0" max="100" value="30" /></div>
+      </div>
+      <div class="cases">
+        <label><input type="checkbox" id="chauffage" /> Chauffage / climatisation</label>
+        <label><input type="checkbox" id="coffre" /> Coffre de toit / porte-vélos</label>
+        <label><input type="checkbox" id="vallonne" /> Trajet vallonné</label>
+        <label><input type="checkbox" id="charge" /> Charge importante (passagers + bagages)</label>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>🗺 4. Trajet &amp; coûts</h2>
+      <div class="grid">
+        <div class="champ"><label for="distTrajet">Distance du trajet (km) — pour la simulation d'arrêts</label><input type="number" id="distTrajet" min="0" step="10" value="500" /></div>
+        <div class="champ"><label for="prixKwh">Prix de l'électricité (€/kWh)</label><input type="number" id="prixKwh" step="0.01" min="0" value="0.25" /></div>
+        <div class="champ"><label for="prixCarb">Prix du carburant (€/L) — référence thermique</label><input type="number" id="prixCarb" step="0.01" min="0" value="1.80" /></div>
+        <div class="champ"><label for="co2Elec">CO₂ du mix électrique (g/kWh)</label><input type="number" id="co2Elec" step="1" min="0" value="50" /></div>
+        <div class="champ"><label for="consoTherm">Conso véhicule thermique de référence (L/100 km)</label><input type="number" id="consoTherm" step="0.1" min="0" value="6.5" /></div>
+        <div class="champ"><label for="co2Carb">CO₂ du carburant (kg/L)</label><input type="number" id="co2Carb" step="0.1" min="0" value="2.9" /></div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>📊 5. Résultats</h2>
+      <p class="indice" id="resScenario"></p>
+      <div id="erreur" class="erreur" hidden></div>
+      <div class="cartes">
+        <div class="carte">
+          <h3>⏱ Temps de charge jusqu'au niveau d'arrêt</h3>
+          <p class="gros" id="resTemps">—</p>
+          <p class="petit" id="resPaliers"></p>
+        </div>
+        <div class="carte">
+          <h3>🔋 Énergie à recharger</h3>
+          <p class="gros" id="resEnergie">—</p>
+          <p class="petit" id="resReseau"></p>
+        </div>
+        <div class="carte">
+          <h3>⚡ Puissance de charge moyenne</h3>
+          <p class="gros" id="resPuissance">—</p>
+          <p class="petit" id="resPuissanceMax"></p>
+        </div>
+        <div class="carte">
+          <h3>🛣 Autonomie jusqu'à 10 % (niveau actuel)</h3>
+          <p class="gros" id="resDistActuel">—</p>
+          <p class="petit">avec le scénario de conduite choisi</p>
+        </div>
+        <div class="carte">
+          <h3>🛣 Autonomie jusqu'à 10 % (après la charge)</h3>
+          <p class="gros" id="resDistApres">—</p>
+          <p class="petit">depuis le niveau d'arrêt de la charge</p>
+        </div>
+        <div class="carte">
+          <h3>💶 Coût de la charge</h3>
+          <p class="gros" id="resCoutCharge">—</p>
+          <p class="petit" id="resCout100"></p>
+        </div>
+        <div class="carte">
+          <h3>🌍 CO₂ du trajet</h3>
+          <p class="gros" id="resCo2">—</p>
+          <p class="petit" id="resCo2Therm"></p>
+        </div>
+        <div class="carte">
+          <h3>🗺 Simulation du trajet</h3>
+          <p class="gros" id="resTrajet">—</p>
+          <p class="petit" id="resTrajetDetail"></p>
+        </div>
+      </div>
+
+      <h3>Autonomie jusqu'à 10 % selon chaque cycle (depuis le niveau actuel)</h3>
+      <div class="cycles">
+        <div class="ligne"><span>Urbain</span><div class="bar"><div id="barU" class="remplissage"></div></div><b id="valU">—</b></div>
+        <div class="ligne"><span>Campagne</span><div class="bar"><div id="barC" class="remplissage"></div></div><b id="valC">—</b></div>
+        <div class="ligne"><span>Autoroute</span><div class="bar"><div id="barA" class="remplissage"></div></div><b id="valA">—</b></div>
+        <div class="ligne"><span>Mixte</span><div class="bar"><div id="barM" class="remplissage"></div></div><b id="valM">—</b></div>
+      </div>
+
+      <div class="graphiques">
+        <div class="bloc-graphe">
+          <h3>Courbe de charge — niveau de batterie dans le temps</h3>
+          <canvas id="graphSoc"></canvas>
+        </div>
+        <div class="bloc-graphe">
+          <h3>Puissance de charge selon le niveau de batterie</h3>
+          <canvas id="graphPuissance"></canvas>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>💡 Pour aller plus loin — éléments supplémentaires à prendre en compte</h2>
+      <div class="cartes-info">
+        <div class="info">
+          <h3>🌡 Température et météo</h3>
+          Sous 20 °C, la consommation augmente (≈ +1,2 % par °C, plafonnée à +50 %) et les pertes de charge augmentent sous 5 °C. Par grand froid, la charge DC ralentit fortement sans préconditionnement. Pluie et vent de face augmentent aussi la consommation.
+        </div>
+        <div class="info">
+          <h3>🚗 Vitesse</h3>
+          Sur autoroute, la consommation croît fortement avec la vitesse (terme aérodynamique ≈ v²) : rouler à 130 km/h coûte nettement plus cher en énergie qu'à 110 km/h.
+        </div>
+        <div class="info">
+          <h3>🧳 Charge utile et aérodynamique</h3>
+          Coffre de toit, porte-vélos, remorque, 4 passagers avec bagages, pneus hiver ou sous-gonflés : chaque élément peut ajouter de 3 % à 30 % de consommation.
+        </div>
+        <div class="info">
+          <h3>🔋 Batterie</h3>
+          Toujours raisonner en capacité <b>utile</b> (pas brute). La batterie se dégrade avec le temps et les cycles de charge rapide (souvent 70–80 % de capacité conservés après 8 ans / 160 000 km). Préconditionnez-la avant une charge rapide par temps froid.
+        </div>
+        <div class="info">
+          <h3>🔌 Recharge</h3>
+          En AC, c'est le chargeur embarqué qui limite la puissance (souvent 7,4 / 11 / 22 kW). En DC, la puissance chute au-delà de 60–80 % : recharger de 10 à 80 % est souvent plus efficace que de pousser jusqu'à 100 %. Certaines bornes rapides partagent leur puissance entre deux véhicules. Pensez aux heures creuses pour le coût.
+        </div>
+        <div class="info">
+          <h3>🗺 Planification d'itinéraire</h3>
+          Gardez une marge de sécurité (arrivez avec au moins 10–20 %). Utilisez un planificateur d'itinéraire avec bornes (ex. A Better Route Planner). Le freinage régénératif récupère de l'énergie en ville et en descente.
+        </div>
+        <div class="info">
+          <h3>📈 Résultats utiles supplémentaires</h3>
+          Coût au 100 km (VE vs thermique), empreinte CO₂ du trajet selon le mix électrique du pays, temps de charge par paliers (10→80 %, 80→100 %), simulation d'un long trajet (nombre d'arrêts et temps total), comparaison des autonomies par cycle urbain / campagne / autoroute.
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <p>Calculateur indicatif — les valeurs réelles dépendent du véhicule, de la météo, de l'état de santé de la batterie et de la borne. Données de véhicules indicatives.</p>
+  </footer>
+
+  <script src="vehicules.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
