@@ -126,16 +126,24 @@ function distanceJusqua(soc, capa, conso, seuil = 10) {
   return Math.max(0, (soc - seuil) / 100 * capa) * 100 / Math.max(1, conso);
 }
 
-/* Simulation d'un long trajet : on roule jusqu'à 10 %, on recharge à 80 %, etc. */
-function simulerTrajet(o, conso, leg) {
+/* Simulation d'un long trajet : on roule jusqu'à 10 %, puis on recharge en DC rapide.
+   Si la borne sélectionnée est en AC, on suppose une borne rapide HPC 150 kW en route.
+   Le dernier arrêt ne charge que l'énergie nécessaire pour finir le trajet. */
+function simulerTrajet(o, conso) {
+  let borneRoute = o;
+  if (o.dcMax > 0) {
+    borneRoute = { ...o, typeBorne: "DC", puisBorne: o.typeBorne === "DC" ? o.puisBorne : 150 };
+  }
   let reste = o.distTrajet, soc = o.socInitial, arrets = 0, tCharge = 0;
   while (reste > 0.01 && arrets < 60) {
     const dMax = distanceJusqua(soc, o.capaUtile, conso);
     if (dMax >= reste) { reste = 0; break; }
     reste -= dMax;
-    arrets++;
+    const socCible = Math.min(80, 10 + reste * conso / 100 / o.capaUtile * 100);
+    const leg = calculCharge(borneRoute, 10, Math.max(socCible, 10.5));
     if (leg) tCharge += leg.t;
-    soc = 80;
+    arrets++;
+    soc = Math.max(10, Math.min(80, socCible));
   }
   const tRoute = o.distTrajet / clamp(o.vitesse, 30, 200);
   return { arrets, tCharge, tRoute, tTotal: tRoute + tCharge };
@@ -356,11 +364,12 @@ function compute() {
   $("resCo2Therm").textContent = "VE : " + fmt(co2VE, 0) + " kg · thermique : " + fmt(co2Th, 0) +
     " kg → économie de " + fmt(co2Th - co2VE, 0) + " kg sur " + fmt(o.distTrajet, 0) + " km";
 
-  const leg = calculCharge(o, 10, 80);
-  const sim = simulerTrajet(o, conso, leg);
-  $("resTrajet").textContent = sim.arrets + " arrêt" + (sim.arrets > 1 ? "s" : "") + " · " + fmtHeure(sim.tTotal);
+  const sim = simulerTrajet(o, conso);
+  $("resTrajet").textContent = (sim.arrets === 0 ? "aucun arrêt" : sim.arrets + " arrêt" + (sim.arrets > 1 ? "s" : "")) +
+    " · " + fmtHeure(sim.tTotal);
   $("resTrajetDetail").textContent = "Temps de route : " + fmtHeure(sim.tRoute) +
-    " + recharges : " + fmtHeure(sim.tCharge) + " (10→80 % à chaque arrêt, avec la borne sélectionnée)";
+    " + recharges DC en route : " + fmtHeure(sim.tCharge) +
+    " (10→80 %, dernier arrêt ajusté au trajet restant)";
 
   const dCycles = {
     urbain: distanceJusqua(o.socInitial, o.capaUtile, cycles.urbain),
