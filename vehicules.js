@@ -4,6 +4,13 @@
    conso : kWh / 100 km par cycle. */
 const VEHICULES = [
   {
+    id: "elroq85",
+    nom: "Škoda Elroq Clever 85",
+    capaUtile: 82, capaBrute: 85,
+    obc: 11, dcMax: 175,
+    conso: { urbain: 13.0, campagne: 15.5, autoroute: 21.0, mixte: 15.5 }
+  },
+  {
     id: "zoe",
     nom: "Renault Zoé ZE50",
     capaUtile: 52, capaBrute: 54.5,
